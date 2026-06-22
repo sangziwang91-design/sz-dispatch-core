@@ -1,0 +1,53 @@
+{
+  "objective": "在一轮内完成三篇资料的提取、交叉分析和风险审计",
+  "tasks": [
+    {
+      "task_id": "T1",
+      "title": "资料A事实提取",
+      "instruction": "提取方法、样本、主要发现和限制，返回紧凑JSON。",
+      "kind": "extract",
+      "context": "资料A：示例文本。",
+      "acceptance": ["包含方法", "包含限制"],
+      "max_output_tokens": 300
+    },
+    {
+      "task_id": "T2",
+      "title": "资料B事实提取",
+      "instruction": "提取方法、样本、主要发现和限制，返回紧凑JSON。",
+      "kind": "extract",
+      "context": "资料B：示例文本。",
+      "acceptance": ["包含方法", "包含限制"],
+      "max_output_tokens": 300
+    },
+    {
+      "task_id": "T3",
+      "title": "资料C事实提取",
+      "instruction": "提取方法、样本、主要发现和限制，返回紧凑JSON。",
+      "kind": "extract",
+      "context": "资料C：示例文本。",
+      "acceptance": ["包含方法", "包含限制"],
+      "max_output_tokens": 300
+    },
+    {
+      "task_id": "T4",
+      "title": "交叉分析",
+      "instruction": "比较三份提取结果，只保留共同点、冲突和未知项。",
+      "kind": "analyze",
+      "dependencies": ["T1", "T2", "T3"],
+      "acceptance": ["列出冲突", "列出未知"],
+      "max_output_tokens": 600,
+      "risk": 3
+    },
+    {
+      "task_id": "T5",
+      "title": "Claim审计",
+      "instruction": "检查交叉分析是否存在证据外推，并给出允许公开的Claim上限。",
+      "kind": "judge",
+      "dependencies": ["T4"],
+      "acceptance": ["给出Claim上限"],
+      "max_output_tokens": 400,
+      "risk": 5,
+      "model_class": "judge"
+    }
+  ]
+}
