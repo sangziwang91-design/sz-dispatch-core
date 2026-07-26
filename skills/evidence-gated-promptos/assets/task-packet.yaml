@@ -1,0 +1,13 @@
+task_object: ""
+primary_objective: ""
+inputs: []
+current_state:
+  status: UNKNOWN
+  evidence_ref: []
+acceptance: []
+output: ""
+permissions:
+  allowed: []
+  requires_explicit_authorization: []
+prohibitions: []
+stop_condition: ""
