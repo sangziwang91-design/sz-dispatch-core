@@ -1,0 +1,30 @@
+name: Skill behavior problem
+description: Report a reproducible activation, instruction, evidence, or validation problem.
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: task
+    attributes:
+      label: Task and client
+      description: What did you ask, and which skills-compatible client/model was used?
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior and evidence
+      description: Include outputs, logs, paths, or screenshots without secrets.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Claim boundary
+      description: What does the evidence prove, and what remains unknown?
