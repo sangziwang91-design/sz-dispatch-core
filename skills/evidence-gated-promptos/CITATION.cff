@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+title: Evidence-Gated PromptOS Skill
+message: "If this workflow is useful in research or tooling, cite this repository and the exact release or commit used."
+type: software
+authors:
+  - family-names: Wang
+    given-names: SangZi
+    orcid: "https://orcid.org/0009-0003-7947-4531"
+version: 0.1.0
+date-released: 2026-07-25
+license: MIT
+repository-code: "https://github.com/sangziwang91-design/sz-dispatch-core"
