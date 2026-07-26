@@ -1,0 +1,30 @@
+name: Improvement proposal
+description: Propose a verified simplification or workflow improvement.
+title: "[proposal] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: failure
+    attributes:
+      label: Repeated failure or measurable cost
+      description: Describe the problem that justifies a permanent rule change.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Provide reproducible examples or comparison results.
+    validations:
+      required: true
+  - type: textarea
+    id: change
+    attributes:
+      label: Smallest sufficient change
+    validations:
+      required: true
+  - type: textarea
+    id: downside
+    attributes:
+      label: Possible harm or overreach
+      description: Could this make simple conversation or creative work worse?
