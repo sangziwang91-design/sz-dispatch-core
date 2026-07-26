@@ -1,0 +1,27 @@
+name: validate evidence-gated PromptOS skill
+
+on:
+  push:
+    paths:
+      - "skills/evidence-gated-promptos/**"
+      - ".github/workflows/validate-evidence-gated-promptos-skill.yml"
+  pull_request:
+    paths:
+      - "skills/evidence-gated-promptos/**"
+      - ".github/workflows/validate-evidence-gated-promptos-skill.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate skill structure
+        run: python skills/evidence-gated-promptos/scripts/validate_skill.py skills/evidence-gated-promptos
+      - name: Run skill tests
+        run: python -m unittest discover -s skills/evidence-gated-promptos/tests -v
