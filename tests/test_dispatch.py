@@ -375,7 +375,7 @@ def test_56_natural_language_acceptance_remains_unknown_not_guessed():
 
 
 def test_57_acceptance_failure_uses_existing_retry_budget():
-    adapter = MockAdapter()
+    adapter = StaticOutputAdapter("stable output without the required marker")
     p = build_plan("x", [task(1, acceptance=("contains:never-present-marker",))])
     r = run(DispatchRunner(adapter, max_retries=1, backoff_seconds=0).run(p))
     assert r.failed == 1 and r.results[0].attempts == 2
