@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import time
 from dataclasses import replace
 
@@ -22,6 +23,53 @@ class DispatchRunner:
         self.timeout_seconds = timeout_seconds
         self.backoff_seconds = backoff_seconds
 
+    @staticmethod
+    def _apply_acceptance(task: TaskSpec, result: WorkerResult) -> WorkerResult:
+        if result.status != TaskStatus.PASSED or not task.acceptance:
+            return result
+
+        evidence = list(result.evidence)
+        unknowns = list(result.unknowns)
+        failures: list[str] = []
+        output = result.output or ""
+
+        for raw in task.acceptance:
+            criterion = raw.strip()
+            lower = criterion.lower()
+            if lower == "nonempty":
+                passed = bool(output.strip())
+            elif lower == "json":
+                try:
+                    json.loads(output)
+                    passed = True
+                except json.JSONDecodeError:
+                    passed = False
+            elif lower.startswith("contains:"):
+                needle = criterion.split(":", 1)[1]
+                passed = bool(needle) and needle in output
+            elif lower.startswith("not_contains:"):
+                needle = criterion.split(":", 1)[1]
+                passed = bool(needle) and needle not in output
+            else:
+                unknowns.append(f"acceptance_unverified:{criterion}")
+                continue
+
+            if passed:
+                evidence.append(f"acceptance_pass:{criterion}")
+            else:
+                failures.append(criterion)
+                evidence.append(f"acceptance_fail:{criterion}")
+
+        if failures:
+            return replace(
+                result,
+                status=TaskStatus.FAILED,
+                error="acceptance failed: " + ", ".join(failures),
+                evidence=tuple(evidence),
+                unknowns=tuple(unknowns),
+            )
+        return replace(result, evidence=tuple(evidence), unknowns=tuple(unknowns))
+
     async def _run_one(self, task: TaskSpec, semaphore: asyncio.Semaphore) -> WorkerResult:
         attempts = 0
         last: WorkerResult | None = None
@@ -38,7 +86,7 @@ class DispatchRunner:
                         status=TaskStatus.FAILED,
                         error="timeout",
                     )
-            last = replace(result, attempts=attempts)
+            last = self._apply_acceptance(task, replace(result, attempts=attempts))
             if last.status == TaskStatus.PASSED:
                 return last
             if attempts <= self.max_retries:
@@ -84,11 +132,27 @@ class DispatchRunner:
         failed = sum(r.status == TaskStatus.FAILED for r in ordered)
         skipped = sum(r.status == TaskStatus.SKIPPED for r in ordered)
         final_output = self._synthesize(plan, ordered)
-        claim = (
-            "VERIFIED: mock/runtime execution completed for this plan only"
-            if failed == 0 and skipped == 0
-            else "PARTIAL: one or more tasks failed or were skipped"
+        acceptance_unknowns = sum(len(r.unknowns) for r in ordered)
+        acceptance_evidence = sum(
+            1 for r in ordered for item in r.evidence if item.startswith("acceptance_pass:")
         )
+        if failed or skipped:
+            claim = "PARTIAL: one or more tasks failed or were skipped"
+        elif acceptance_unknowns:
+            claim = (
+                "EXECUTED_WITH_UNVERIFIED_ACCEPTANCE: workers returned successfully, "
+                "but one or more declared acceptance criteria were not machine-checkable"
+            )
+        elif acceptance_evidence:
+            claim = (
+                "CHECKED: runtime execution and declared deterministic acceptance "
+                "passed for this plan only"
+            )
+        else:
+            claim = (
+                "EXECUTED: workers returned successfully for this plan; "
+                "no deterministic acceptance criteria were checked"
+            )
         return RunReport(
             objective=plan.objective,
             results=ordered,

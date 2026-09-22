@@ -7,7 +7,7 @@ import time
 import pytest
 
 from sz_dispatch.adapters import MockAdapter
-from sz_dispatch.models import TaskKind, TaskSpec, TaskStatus
+from sz_dispatch.models import TaskKind, TaskSpec, TaskStatus, WorkerResult
 from sz_dispatch.planner import build_plan
 from sz_dispatch.runner import DispatchRunner
 from sz_dispatch.util import compact_context, dedupe_preserve, estimate_tokens, stable_hash
@@ -236,10 +236,10 @@ def test_37_partial_claim_on_failure():
     assert r.claim_ceiling.startswith("PARTIAL")
 
 
-def test_38_verified_claim_on_all_pass():
+def test_38_executed_claim_on_all_pass_without_acceptance():
     p = build_plan("x", [task(1)])
     r = run(DispatchRunner(MockAdapter(), max_retries=0).run(p))
-    assert r.claim_ceiling.startswith("VERIFIED")
+    assert r.claim_ceiling.startswith("EXECUTED:")
 
 
 def test_39_report_counts_consistent():
@@ -319,3 +319,63 @@ def test_50_no_false_production_claim():
     r = run(DispatchRunner(MockAdapter(), max_retries=0).run(p))
     text = json.dumps(r.to_dict(), ensure_ascii=False, default=str)
     assert "生产级" not in text and "节省" not in r.claim_ceiling
+
+
+# 51-57: deterministic acceptance gate
+
+class StaticOutputAdapter:
+    def __init__(self, output: str):
+        self.output = output
+
+    async def run(self, spec: TaskSpec):
+        return WorkerResult(task_id=spec.task_id, status=TaskStatus.PASSED, output=self.output)
+
+
+def test_51_contains_acceptance_passes_and_is_evidence():
+    p = build_plan("x", [task(1, acceptance=("contains:method",))])
+    r = run(DispatchRunner(StaticOutputAdapter("method and limitation"), max_retries=0).run(p))
+    assert r.passed == 1
+    assert "acceptance_pass:contains:method" in r.results[0].evidence
+    assert r.claim_ceiling.startswith("CHECKED:")
+
+
+def test_52_contains_acceptance_failure_fails_task():
+    p = build_plan("x", [task(1, acceptance=("contains:method",))])
+    r = run(DispatchRunner(StaticOutputAdapter("no requested field"), max_retries=0).run(p))
+    assert r.failed == 1
+    assert "acceptance failed" in (r.results[0].error or "")
+
+
+def test_53_not_contains_acceptance():
+    p = build_plan("x", [task(1, acceptance=("not_contains:SECRET",))])
+    good = run(DispatchRunner(StaticOutputAdapter("safe output"), max_retries=0).run(p))
+    bad = run(DispatchRunner(StaticOutputAdapter("SECRET leaked"), max_retries=0).run(p))
+    assert good.passed == 1 and bad.failed == 1
+
+
+def test_54_json_acceptance():
+    p = build_plan("x", [task(1, acceptance=("json",))])
+    good = run(DispatchRunner(StaticOutputAdapter('{"ok": true}'), max_retries=0).run(p))
+    bad = run(DispatchRunner(StaticOutputAdapter("not json"), max_retries=0).run(p))
+    assert good.passed == 1 and bad.failed == 1
+
+
+def test_55_nonempty_acceptance():
+    p = build_plan("x", [task(1, acceptance=("nonempty",))])
+    bad = run(DispatchRunner(StaticOutputAdapter("   "), max_retries=0).run(p))
+    assert bad.failed == 1
+
+
+def test_56_natural_language_acceptance_remains_unknown_not_guessed():
+    p = build_plan("x", [task(1, acceptance=("contains method",))])
+    r = run(DispatchRunner(StaticOutputAdapter("contains method"), max_retries=0).run(p))
+    assert r.passed == 1
+    assert r.results[0].unknowns == ("acceptance_unverified:contains method",)
+    assert r.claim_ceiling.startswith("EXECUTED_WITH_UNVERIFIED_ACCEPTANCE:")
+
+
+def test_57_acceptance_failure_uses_existing_retry_budget():
+    adapter = StaticOutputAdapter("stable output without the required marker")
+    p = build_plan("x", [task(1, acceptance=("contains:never-present-marker",))])
+    r = run(DispatchRunner(adapter, max_retries=1, backoff_seconds=0).run(p))
+    assert r.failed == 1 and r.results[0].attempts == 2
