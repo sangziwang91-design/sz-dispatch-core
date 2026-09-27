@@ -26,7 +26,7 @@ It is intentionally **not** a general agent platform, a provider quota bypass, o
 ## What it does not do
 
 - choose different live models from `model_class` automatically;
-- programmatically verify acceptance criteria;
+- infer or judge free-form acceptance criteria; unsupported natural-language criteria remain explicit `UNKNOWN`;
 - provide an independent judge or human approval interface;
 - prove real token, cost, latency, or quality improvements;
 - bypass ChatGPT or API account limits;
@@ -100,18 +100,18 @@ Never put an API key in a browser artifact, repository, task file, or issue.
       "instruction": "Return method, sample, finding, and limitation as compact JSON.",
       "kind": "extract",
       "context": "Document A text...",
-      "acceptance": ["contains method", "contains limitation"],
+      "acceptance": ["contains:method", "contains:limitation"],
       "max_output_tokens": 300
     }
   ]
 }
 ```
 
-`acceptance` is currently included in the worker prompt but is **not** programmatically enforced. Treat it as guidance, not verified completion.
+`acceptance` supports a deliberately small deterministic grammar: `nonempty`, `json`, `contains:<text>`, and `not_contains:<text>`. Those forms are programmatically checked after each worker attempt and can trigger the existing retry budget. Any other natural-language criterion is preserved as `acceptance_unverified:<criterion>` and lowers the run claim ceiling; it is never guessed as passed.
 
 ## Validation
 
-The repository includes 50 deterministic tests covering schema validation, dependency failures, context compaction, budget scaling, DAG waves, actual `asyncio` concurrency in the sandbox, retry behavior, failure isolation, dependency skipping, serialization, and claim-boundary invariants.
+The repository includes deterministic tests covering schema validation, dependency failures, context compaction, budget scaling, DAG waves, actual `asyncio` concurrency in the sandbox, retry behavior, failure isolation, dependency skipping, serialization, and claim-boundary invariants.
 
 See [VALIDATION_REPORT.md](VALIDATION_REPORT.md).
 
@@ -123,7 +123,7 @@ Verified in the current sandbox:
 - concurrency control with the mock adapter;
 - timeout/retry/failure handling;
 - deterministic report generation;
-- 50 local tests passing.
+- deterministic local tests passing for the current checked commit.
 
 Not verified:
 
