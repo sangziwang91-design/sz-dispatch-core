@@ -46,5 +46,9 @@ Issues = "https://github.com/sangziwang91-design/sz-dispatch-core/issues"
 addopts = "-q"
 testpaths = ["tests"]
 
+[tool.setuptools.packages.find]
+include = ["sz_dispatch*"]
+exclude = ["skills*"]
+
 [tool.setuptools.package-data]
 sz_dispatch = ["py.typed"]
